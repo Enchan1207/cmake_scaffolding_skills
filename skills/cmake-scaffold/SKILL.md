@@ -1,45 +1,114 @@
 ---
 name: cmake-scaffold
-description: 新しいC/C++プロジェクト、または既存のソースツリーへ最初のCMakeプロジェクトを構成する
+description: CMakeによるビルド構成が整った新規C/C++プロジェクトを作成する。
 ---
 
-# CMakeプロジェクトのスキャフォールディング
+# CMake ビルド構成の作成
 
-依頼に合う最小限のターゲットとファイルを作り、実際に構成・ビルドできる状態にする。既存のソースツリーに導入するときは、その配置と命名規則を尊重する。
+実行ファイルまたはライブラリをビルドできる必要最小限のCMake構成を作る。
 
-## 最初に決めること
+## 0. 事前準備
 
-- プロジェクト名、使用言語（C、C++、または両方）、ライブラリ・実行ファイルの要否を、依頼と作業先から判断する。名前は指定値を優先し、指定がなければ明確なディレクトリ名を使う。公開ヘッダーの配置に使うパッケージ名は、指定がなければプロジェクト名から決める。名前やターゲット種別を判断できない場合は、ファイル作成前に会話で確認する。CMake の構成処理中には質問しない。
-- テストの要否と、別の CMake プロジェクトから利用する予定（`add_subdirectory`、`FetchContent`、インストール後の利用）を確認する。その他の通常の選択は既存ファイルと依頼から決める。
-- 必要な機能と互換性に合わせて CMake の最低バージョンを選ぶ。指定がなければ 3.21 とする。3.20 未満の指定はビルドプリセットと両立しないため、生成前に利用者と方針を決める。
+以下のコマンドを実行し、CMakeのバージョンを取得しておく。
 
-## ファイルを作る
+```sh
+cmake --version
+```
 
-新規プロジェクトでは、必要な部分だけを作る。
+cmakeを呼び出すことができない場合は、ユーザに対して「エージェントがCMakeバイナリを見つけられなかった」ことを報告し、終了する。
 
-| ターゲット       | ディレクトリ                      | ルートの雛形                                           |
-| ---------------- | --------------------------------- | ------------------------------------------------------ |
-| 実行ファイルのみ | `cli/`                            | `assets/sources/cmake/root-executable/CMakeLists.txt`  |
-| ライブラリのみ   | `src/`、`include/<パッケージ名>/` | `assets/sources/cmake/root-library/CMakeLists.txt`     |
-| 両方             | 上記すべて                        | `assets/sources/cmake/root-library-cli/CMakeLists.txt` |
+## 1. プロジェクト設定の整理
 
-該当するルートの雛形と、必要な `assets/sources/cmake/cli/`・`assets/sources/cmake/src/` の雛形だけを参考にする。既存のソース配置が異なる場合は、ファイルを移動せず CMake 側を合わせる。公開ヘッダーは C なら `assets/sources/headers/public.h`、C++ なら `assets/sources/headers/public.hpp` を出発点とし、パッケージ名や API に合わせて命名する。宣言を実装と一致させ、ヘッダーガードを一意で有効な名前にする。
+作成するプロジェクトについて、以下を検討する。暫定値を整理したのち、ユーザに尋ねる。
 
-すべての `@...@` を実際の名前や内容に置き換え、不要な行は削除する。ソース、公開インクルードパス、言語要件、リンクする依存先を各ターゲットに設定する。実行ファイルがライブラリの API を使う場合はリンクする。サンプルの実装や文書は、動く出発点に必要な分だけ追加する。
+- プロジェクト名: ユーザによる指示がなければ、以下から選択する
+  - このskillの呼び出し元ディレクトリ名がCMakeプロジェクトとして利用可能ならば(`[a-zA-Z0-9_]+`)、それを検討する。
+- 利用言語: ユーザによる指示がなければ、以下から選択する
+  - Cのみ
+  - C/C++
+- プロジェクト形態: ユーザによる指示がなければ、以下から選択する
+  - ライブラリのみ
+  - ライブラリ+CLI
+- GoogleTestによるテスト: 構成するかどうかを選択する。GoogleTestはC++を必要とするため、利用言語で `Cのみ` を選択していた場合は _C++が言語として追加される旨_ をユーザに伝える。
 
-`assets/sources/CMakePresets.json` をルートに配置し、`cmakeMinimumRequired` を `cmake_minimum_required` と一致させる（パッチ番号を省略した場合は 0）。構成・ビルド両プリセットの名前は `target` とする。新しいフィールドが必要な場合だけプリセットのスキーマ版を上げ、選んだ CMake の最低バージョンとの互換性を保つ。
+## 2. 初期ディレクトリの作成
 
-## 必要な場合だけ追加する
+パッケージに以下のようなディレクトリ構造を作成する。`/(root)` はリポジトリルート、あるいはskill呼び出し元のディレクトリを示す。
 
-- テストを求められた場合だけ `tests/` を作り、CTest に登録する。指定されたテスト基盤や既存の慣習に従い、通常のビルドにはテスト専用の依存を持ち込まない。
-- 他のプロジェクトからソースとして使う場合は、ネストした構成でもライブラリターゲットを利用できるようにし、CLI・例・テストは依存先のビルドで既定では作らない。インストールと export は、インストール後の利用が必要な場合だけ追加する。
+- `/(root)`
+  - `docs`
+  - `src`
+  - `include/<project_name>`
+  - `cli` (CLIを提供する場合のみ)
+  - `tests` (テストを構成する場合のみ)
 
-## 確認する
+## 3. 必須ファイルのコピー
 
-未置換のプレースホルダーがないことを確かめ、`cmake --preset target` と `cmake --build --preset target` を実行する。
+以下のファイルをコピーする。 `/(root)` はリポジトリルート、あるいはskill呼び出し元のディレクトリを示す。
 
-該当する実行ファイルと CTest のテストも動かす。依存先からの利用が要件なら、小さな利用側プロジェクトでも確認する。雛形に起因する失敗を直し、作成したターゲット、ビルド方法、実施できなかった確認を報告する。
+- CMake preset
+  - ソース: [CMakePresets.json](./assets/sources/CMakePresets.json)
+  - 配置先: `/(root)/CMakePresets.json`
+  - 置換:
+    - 以下をCMakeバージョンに合わせて置き換える
+      - `.cmakeMinimumRequired.major`
+      - `.cmakeMinimumRequired.minor`
+      - `.cmakeMinimumRequired.patch`
+- root CMakeLists
+  - ソース: [CMakeLists.txt](./assets/sources/cmake/root/CMakeLists.txt)
+  - 配置先: `/(root)/CMakeLists.txt`
+  - 置換: ファイル内の以下の文字列を置き換える
+    - `<cmake_version>`: インストールされているCMakeのバージョン
+    - `<project_name>`: プロジェクト名
+    - `<language>`: `C` または `C CXX`
+  - CLIやテストを構成する場合は、対応するコメントアウトされたブロックを有効にし、案内用の行を成果物から削除する。
+- root include file
+  - ソース: [project_name.h](./assets/sources/headers/project_name.h)
+  - 配置先: `/(root)/include/<project_name>/<project_name>.h`
+  - 置換: ファイル内の以下の文字列を置き換える
+    - `INCLUDE_GUARD`: `<PROJECT_NAME>_H` (`project_name` をUPPER_CASEにしたもの)
+- library CMakeLists
+  - ソース: [CMakeLists.txt](./assets/sources/cmake/src/CMakeLists.txt)
+  - 配置先: `/(root)/src/CMakeLists.txt`
+  - 置換: `<project_name>` をプロジェクト名に置き換える
+- library source
+  - ソース: [func.c](./assets/sources/src/func.c)
+  - 配置先: `/(root)/src/func.c`
+  - 置換: `<project_name>` をプロジェクト名に置き換える
+- CLI CMakeLists (CLIを提供する場合のみ)
+  - ソース: [CMakeLists.txt](./assets/sources/cmake/cli/CMakeLists.txt)
+  - 配置先: `/(root)/cli/CMakeLists.txt`
+  - 置換: `<project_name>` をプロジェクト名に置き換える
+- CLI entry point (CLIを提供する場合のみ)
+  - ソース: [main.c](./assets/sources/cli/main.c)
+  - 配置先: `/(root)/cli/main.c`
+  - 置換: `<project_name>` をプロジェクト名に置き換える
+- test CMakeLists (テストを構成する場合のみ)
+  - ソース: [CMakeLists.txt](./assets/sources/cmake/tests/CMakeLists.txt)
+  - 配置先: `/(root)/tests/CMakeLists.txt`
+  - 置換: `<project_name>` をプロジェクト名に置き換える
+- factorial test (テストを構成する場合のみ)
+  - ソース: [test_factorial.cpp](./assets/sources/tests/test_factorial.cpp)
+  - 配置先: `/(root)/tests/test_factorial.cpp`
+  - 置換: `<project_name>` をプロジェクト名に置き換える
+- development document
+  - ソース: [development.md](./assets/documents/development.md)
+  - 配置先: `/(root)/docs/development.md`
+  - 置換: なし。
 
-## 運用ドキュメントを配置する
+## 4. ビルド確認
 
-スキャフォールディングと確認が終わったら、リポジトリに構成・ビルド手順などを記した運用ドキュメントがあるか調べる。既存の運用ドキュメントがあれば追加しない。なければ `assets/documents/development.md` をコピーする。配置先は通常 `docs/development.md` とし、既存リポジトリにドキュメント用ディレクトリがある場合はそのディレクトリ内の `development.md` とする。既存ファイルは上書きしない。
+rootのCMakeLists.txtが配置されているディレクトリで以下のコマンドを実行し、完了することを確認する。
+
+```sh
+cmake --preset target
+cmake --build --preset target
+```
+
+テストを構成した場合は、テストを有効にしてビルド・実行する。
+
+```sh
+cmake --preset target -D<project_name>_BUILD_TESTS=ON
+cmake --build --preset target
+ctest --test-dir build/target --output-on-failure
+```

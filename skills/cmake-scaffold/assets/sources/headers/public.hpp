@@ -1,6 +1,0 @@
-#ifndef @HEADER_GUARD@
-#define @HEADER_GUARD@
-
-@PUBLIC_DECLARATIONS@
-
-#endif /* @HEADER_GUARD@ */

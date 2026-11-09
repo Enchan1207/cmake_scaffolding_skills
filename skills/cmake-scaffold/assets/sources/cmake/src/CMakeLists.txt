@@ -1,7 +1,9 @@
-add_library(@LIBRARY_TARGET@)
+add_library(<project_name>_library)
 
-target_sources(@LIBRARY_TARGET@ PRIVATE @LIBRARY_SOURCE@)
+target_sources(<project_name>_library PRIVATE
+    func.c
+)
 
-target_include_directories(@LIBRARY_TARGET@ PUBLIC
+target_include_directories(<project_name>_library PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
 )
