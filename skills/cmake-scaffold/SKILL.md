@@ -1,17 +1,45 @@
 ---
 name: cmake-scaffold
-description: Scaffold a small C or C++ project with CMake, including optional libraries, executables, and tests. Use when creating a new project or its initial CMake build structure.
+description: 新しいC/C++プロジェクト、または既存のソースツリーへ最初のCMakeプロジェクトを構成する
 ---
 
-# CMake scaffolding
+# CMakeプロジェクトのスキャフォールディング
 
-Create a minimal, working CMake project shaped by the user's requested language, targets, and intended consumers. This skill covers initial scaffolding; preserve established conventions when adding the first CMake files to an existing source tree.
+依頼に合う最小限のターゲットとファイルを作り、実際に構成・ビルドできる状態にする。既存のソースツリーに導入するときは、その配置と命名規則を尊重する。
 
-1. Inspect the destination and determine the project name, requested language (C, C++, or both), project type (executable, library, or both), tests, and whether another CMake project must consume the result. Use a name supplied by the user or an unambiguous destination directory name. If no suitable name or project type can be inferred, ask in the conversation before writing files; do not make CMake configuration interactive. Use a supplied package name or derive one from the project name for the public-header directory. Infer other routine choices from the request and existing files, and ask only when a missing choice materially changes the project.
-2. For an executable-only project, create `cli/` with its source and `CMakeLists.txt`; omit `src/` and `include/`. For a library-only project, create `src/` with its source and `CMakeLists.txt`, plus public headers under `include/<package_name>/`; omit `cli/`. For a project with both targets, create all three directories. For a C library, start a public `.h` header from `assets/headers/public.h`; for a C++ library, start a public `.hpp` header from `assets/headers/public.hpp`. Name the generated header for the package or its API, replace `@HEADER_GUARD@` with a unique valid macro and `@PUBLIC_DECLARATIONS@` with declarations implemented by the source. The C header's `extern "C"` guards support C++ callers. Add `tests/` only when requested. If existing sources already live elsewhere, preserve their layout and adapt the CMake paths instead of moving them without cause.
-3. Choose the project's minimum CMake version from its required features and the user's compatibility requirements; use 3.21 when neither requires another version. Create a root `CMakeLists.txt` from the matching `assets/cmake/root-executable/`, `root-library/`, or `root-library-cli/` starting point. Read only that root and the `assets/cmake/cli/` and `assets/cmake/src/` files needed for the selected type. Copy `assets/CMakePresets.json` to the project root for every project type. Set its `cmakeMinimumRequired` to the same minimum as the root `cmake_minimum_required` (use patch 0 when omitted). Keep both configure and build preset names as `target`. The asset uses preset schema version 2, the minimum that supports build presets; raise the schema version only for fields that need it, and keep it compatible with the chosen minimum CMake version. A requested minimum below 3.20 conflicts with the build preset, so resolve that choice with the user before generating files. Replace every `@...@` placeholder in the CMake files and adapt the language and source names. In the CLI asset, replace `@CLI_DEPENDENCIES@` with the needed `target_link_libraries` call or remove the line. Define sources, include paths, language requirements, and linked dependencies on their targets. Add only the source, header, and documentation files needed for a usable starting point.
-4. Make optional parts genuinely optional. In a project with both targets, link the CLI to the library when it uses the library API. If tests are requested, integrate them with CTest and keep the ordinary build independent of test-only dependencies. Follow a requested test framework or an existing project convention; a simple test need not introduce a network dependency.
-5. If the project must be consumed through `add_subdirectory` or `FetchContent`, keep its targets usable when nested under another project. Make examples, CLI tools, and tests opt-in for dependency consumers. Add install/export packaging only when the user needs installed-package consumption.
-6. Configure with `cmake --preset target` and build with `cmake --build --preset target`. Run the relevant executable and CTest tests when present. If dependency consumption is part of the request, verify it with a small consumer project. Fix failures caused by the scaffold, then report the resulting targets, build commands, and any checks that could not run.
+## 最初に決めること
 
-Use the assets as starting patterns, not files to copy unchanged. Choose names, sample behavior, dependencies, and CMake version for the new project rather than carrying over the factorial example from this repository. Check the generated files for unresolved placeholders before configuring.
+- プロジェクト名、使用言語（C、C++、または両方）、ライブラリ・実行ファイルの要否を、依頼と作業先から判断する。名前は指定値を優先し、指定がなければ明確なディレクトリ名を使う。公開ヘッダーの配置に使うパッケージ名は、指定がなければプロジェクト名から決める。名前やターゲット種別を判断できない場合は、ファイル作成前に会話で確認する。CMake の構成処理中には質問しない。
+- テストの要否と、別の CMake プロジェクトから利用する予定（`add_subdirectory`、`FetchContent`、インストール後の利用）を確認する。その他の通常の選択は既存ファイルと依頼から決める。
+- 必要な機能と互換性に合わせて CMake の最低バージョンを選ぶ。指定がなければ 3.21 とする。3.20 未満の指定はビルドプリセットと両立しないため、生成前に利用者と方針を決める。
+
+## ファイルを作る
+
+新規プロジェクトでは、必要な部分だけを作る。
+
+| ターゲット       | ディレクトリ                      | ルートの雛形                                           |
+| ---------------- | --------------------------------- | ------------------------------------------------------ |
+| 実行ファイルのみ | `cli/`                            | `assets/sources/cmake/root-executable/CMakeLists.txt`  |
+| ライブラリのみ   | `src/`、`include/<パッケージ名>/` | `assets/sources/cmake/root-library/CMakeLists.txt`     |
+| 両方             | 上記すべて                        | `assets/sources/cmake/root-library-cli/CMakeLists.txt` |
+
+該当するルートの雛形と、必要な `assets/sources/cmake/cli/`・`assets/sources/cmake/src/` の雛形だけを参考にする。既存のソース配置が異なる場合は、ファイルを移動せず CMake 側を合わせる。公開ヘッダーは C なら `assets/sources/headers/public.h`、C++ なら `assets/sources/headers/public.hpp` を出発点とし、パッケージ名や API に合わせて命名する。宣言を実装と一致させ、ヘッダーガードを一意で有効な名前にする。
+
+すべての `@...@` を実際の名前や内容に置き換え、不要な行は削除する。ソース、公開インクルードパス、言語要件、リンクする依存先を各ターゲットに設定する。実行ファイルがライブラリの API を使う場合はリンクする。サンプルの実装や文書は、動く出発点に必要な分だけ追加する。
+
+`assets/sources/CMakePresets.json` をルートに配置し、`cmakeMinimumRequired` を `cmake_minimum_required` と一致させる（パッチ番号を省略した場合は 0）。構成・ビルド両プリセットの名前は `target` とする。新しいフィールドが必要な場合だけプリセットのスキーマ版を上げ、選んだ CMake の最低バージョンとの互換性を保つ。
+
+## 必要な場合だけ追加する
+
+- テストを求められた場合だけ `tests/` を作り、CTest に登録する。指定されたテスト基盤や既存の慣習に従い、通常のビルドにはテスト専用の依存を持ち込まない。
+- 他のプロジェクトからソースとして使う場合は、ネストした構成でもライブラリターゲットを利用できるようにし、CLI・例・テストは依存先のビルドで既定では作らない。インストールと export は、インストール後の利用が必要な場合だけ追加する。
+
+## 確認する
+
+未置換のプレースホルダーがないことを確かめ、`cmake --preset target` と `cmake --build --preset target` を実行する。
+
+該当する実行ファイルと CTest のテストも動かす。依存先からの利用が要件なら、小さな利用側プロジェクトでも確認する。雛形に起因する失敗を直し、作成したターゲット、ビルド方法、実施できなかった確認を報告する。
+
+## 運用ドキュメントを配置する
+
+スキャフォールディングと確認が終わったら、リポジトリに構成・ビルド手順などを記した運用ドキュメントがあるか調べる。既存の運用ドキュメントがあれば追加しない。なければ `assets/documents/development.md` をコピーする。配置先は通常 `docs/development.md` とし、既存リポジトリにドキュメント用ディレクトリがある場合はそのディレクトリ内の `development.md` とする。既存ファイルは上書きしない。
