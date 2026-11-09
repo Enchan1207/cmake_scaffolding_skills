@@ -51,6 +51,12 @@ cmakeを呼び出すことができない場合は、ユーザに対して「エ
       - `.cmakeMinimumRequired.major`
       - `.cmakeMinimumRequired.minor`
       - `.cmakeMinimumRequired.patch`
+- Visual Studio Code workspace file
+  - ソース: [project_name.code-workspace](./assets/sources/project_name.code-workspace)
+  - 配置先: `/(root)/<project_name>.code-workspace`
+  - 置換:
+    - ファイル名の `project_name` をプロジェクト名に置き換える
+    - エントリ `"path": "./tests"` は、テストが有効でなければ追加しない
 - gitignore
   - ソース: [gitignore](./assets/sources/gitignore)
   - 配置先: `/(root)/.gitignore`
@@ -94,7 +100,7 @@ cmakeを呼び出すことができない場合は、ユーザに対して「エ
 - development document
   - ソース: [development.md](./assets/documents/development.md)
   - 配置先: `/(root)/docs/development.md`
-  - 置換: なし。
+  - 置換: `<project_name>` をプロジェクト名に置き換える
 
 ## 4. ビルド確認
 
