@@ -1,0 +1,3 @@
+add_executable(@CLI_TARGET@ @CLI_SOURCE@)
+
+@CLI_DEPENDENCIES@
